@@ -1,6 +1,8 @@
 #include "IconImage.h"
 
 #include "IconFile.h"
+#include "Utils.h"
+#include "Format.h"
 
 inline BYTE getNybble(BYTE b, int i)
 {
@@ -64,6 +66,7 @@ RGBQUAD IconImage::GetColour(int x, int y) const
 
     case 24:
     {
+        _ASSERTE(iColorCount == 0);
         const UINT32 v = *reinterpret_cast<UINT32*>(GetColourPtr(x, y)) & 0xFFFFFF;
         c.rgbRed = (v >> 16) & 0xFF;
         c.rgbGreen = (v >> 8) & 0xFF;
@@ -73,6 +76,7 @@ RGBQUAD IconImage::GetColour(int x, int y) const
 
     case 32:
     {
+        _ASSERTE(iColorCount == 0);
         const UINT32 v = *reinterpret_cast<UINT32*>(GetColourPtr(x, y));
         c.rgbReserved = (v >> 24) & 0xFF;
         c.rgbRed = (v >> 16) & 0xFF;
@@ -82,7 +86,7 @@ RGBQUAD IconImage::GetColour(int x, int y) const
     }
 
     default:
-        _RPTFWN(_CRT_ASSERT, TEXT("biBitCount %d not supported"), biBitCount);
+        throw Error(Format(TEXT("biBitCount %d not supported"), biBitCount));
         break;
     }
     if (GetMask(x, y))
@@ -100,51 +104,53 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
     case 1:
     {
         _ASSERTE(iColorCount == 2);
-        _ASSERT_EXPR(FALSE, TEXT("TODO"));
-        //const BYTE v = *reinterpret_cast<BYTE*>(GetColourPtr(x, y));
-        //const BYTE n = GetBit(v, 8 - 1 - x % 8);
-        //c = GetColour(n);
+        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
+        //const BYTE n = GetNearestColor(c);
+        //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
+        //*p = SetBit(*p, 8 - 1 - x % 8, n);
         break;
     }
 
     case 4:
     {
         _ASSERTE(iColorCount == 16);
-        _ASSERT_EXPR(FALSE, TEXT("TODO"));
-        //const BYTE v = *reinterpret_cast<BYTE*>(GetColourPtr(x, y));
-        //const BYTE n = getNybble(v, 2 - 1 - x % 2);
-        //c = GetColour(n);
+        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
+        //const BYTE n = GetNearestColor(c);
+        //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
+        //*p = setNybble(*p, 8 - 1 - x % 8, n);
         break;
     }
 
     case 8:
     {
         _ASSERTE(iColorCount == 256);
-        _ASSERT_EXPR(FALSE, TEXT("TODO"));
-        //const BYTE n = *reinterpret_cast<BYTE*>(GetColourPtr(x, y));
-        //c = GetColour(n);
+        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
+        //const BYTE n = GetNearestColor(c);
+        //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
+        //*p = n;
         break;
     }
 
     case 24:
     {
-        _ASSERT_EXPR(FALSE, TEXT("TODO"));
-        //const UINT32 v = *reinterpret_cast<UINT32*>(GetColourPtr(x, y)) & 0xFFFFFF;
-        //c.rgbRed = (v >> 16) & 0xFF;
-        //c.rgbGreen = (v >> 8) & 0xFF;
-        //c.rgbBlue = (v >> 0) & 0xFF;
+        _ASSERTE(iColorCount == 0);
+        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
+        //const UINT32* p = reinterpret_cast<UINT32*>(GetColourPtr(x, y));
+        //const UINT32 v = ((c.rgbReserved << 24) | (c.rgbRed << 16) | (c.rgbGreen << 8) | (c.rgbBlue << 0)) & 0xFFFFFF;
+        //*p = (*p & 0xFF000000) | v;
         break;
     }
 
     case 32:
     {
+        _ASSERTE(iColorCount == 0);
         const UINT32 v = (c.rgbReserved << 24) | (c.rgbRed << 16) | (c.rgbGreen << 8) | (c.rgbBlue << 0);
         *reinterpret_cast<UINT32*>(GetColourPtr(x, y)) = v;
         break;
     }
 
     default:
-        _RPTFWN(_CRT_ASSERT, TEXT("biBitCount %d not supported"), biBitCount);
+        throw Error(Format(TEXT("biBitCount %d not supported"), biBitCount));
         break;
     }
     SetMask(x, y, c.rgbReserved == 255);

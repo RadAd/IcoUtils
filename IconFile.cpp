@@ -1,6 +1,7 @@
 #include "IconFile.h"
 
 #include "Utils.h"
+#include <tchar.h>
 
 IconFile IconFile::Load(LPCTSTR lpFilename)
 {
@@ -40,37 +41,42 @@ IconFile::~IconFile()
 {
 }
 
+#define VALIDATE(x) if (!(x)) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s\n"), TEXT(#x)); }
+
 void IconFile::Validate() const
 {
-    _ASSERTE(Header.idReserved == 0);
-    _ASSERTE(GetType() == TYPE_ICON || GetType() == TYPE_CURSOR);
-    _ASSERTE(Header.idCount == entry.size());
+    bool valid = true;
+    VALIDATE(Header.idReserved == 0);
+    VALIDATE(GetType() == TYPE_ICON || GetType() == TYPE_CURSOR);
+    VALIDATE(Header.idCount == entry.size());
     DWORD dwImageOffset = sizeof(ICONHEADER) + static_cast<DWORD>(entry.size()) * sizeof(ICONDIR);
     for (const Entry& entry : entry)
     {
         if (!entry.IsPNG())
         {
             const BITMAPINFOHEADER* header = entry.GetBITMAPINFOHEADER();
+            VALIDATE(header->biPlanes == 1);
 
-            _ASSERTE(header->biWidth == entry.dir.bWidth);
-            _ASSERTE(header->biHeight == entry.dir.bHeight * 2);
-            _ASSERTE(header->biBitCount == entry.dir.wBitCount);
+            VALIDATE(header->biWidth == entry.dir.bWidth);
+            VALIDATE(header->biHeight == entry.dir.bHeight * 2);
+            VALIDATE(header->biBitCount == entry.dir.wBitCount);
 
-            _ASSERTE(entry.dir.dwImageOffset == dwImageOffset);
+            VALIDATE(entry.dir.dwImageOffset == dwImageOffset);
 
             const DWORD dwBytesInXOR = entry.GetBytesPerLineXOR() * header->biHeight / 2;
             const DWORD dwBytesInAND = entry.GetBytesPerLineAND() * header->biHeight / 2;
 
-            _ASSERTE(sizeof(BITMAPINFOHEADER) + (entry.GetColorSize() * sizeof(RGBQUAD)) + dwBytesInXOR + dwBytesInAND == entry.dir.dwBytesInRes);
+            VALIDATE(sizeof(BITMAPINFOHEADER) + (entry.GetColorSize() * sizeof(RGBQUAD)) + dwBytesInXOR + dwBytesInAND == entry.dir.dwBytesInRes);
         }
         else
         {
-            _ASSERTE(entry.dir.bWidth == 0);
-            _ASSERTE(entry.dir.bHeight == 0);
-            _ASSERTE(entry.dir.wBitCount == 32);
+            VALIDATE(entry.dir.bWidth == 0);
+            VALIDATE(entry.dir.bHeight == 0);
+            VALIDATE(entry.dir.wBitCount == 32);
         }
         dwImageOffset += entry.dir.dwBytesInRes;
     }
+    if (!valid) throw Error(TEXT("Invalid icon"));
 }
 
 void IconFile::Save(LPCTSTR lpFilename) const

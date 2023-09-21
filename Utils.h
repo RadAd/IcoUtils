@@ -1,6 +1,13 @@
 #pragma once
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <string>
+
+#ifdef UNICODE
+#define tstring wstring
+#else
+#define tstring string
+#endif
 
 class WinError
 {
@@ -14,6 +21,20 @@ public:
 
 private:
     DWORD m_error;
+};
+
+class Error
+{
+public:
+    Error(std::tstring msg)
+        : m_msg(std::move(msg))
+    {
+    }
+
+    const std::tstring& GetMsg() const { return m_msg; }
+
+private:
+    std::tstring m_msg;
 };
 
 #define CHECK(expr) if (!(expr)) throw WinError();

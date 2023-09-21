@@ -184,4 +184,9 @@ int _tmain(const int argc, const TCHAR* argv[])
         _ftprintf(stderr, TEXT("Error: 0x%08x\n"), e.GetError());
         return EXIT_FAILURE;
     }
-} 
+    catch (const Error& e)
+    {
+        _ftprintf(stderr, e.GetMsg().c_str());
+        return EXIT_FAILURE;
+    }
+}

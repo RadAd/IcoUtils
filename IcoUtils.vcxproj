@@ -63,6 +63,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="arg.h" />
+    <ClInclude Include="Format.h" />
     <ClInclude Include="IconFile.h" />
     <ClInclude Include="IconImage.h" />
     <ClInclude Include="Utils.h" />
