@@ -122,13 +122,16 @@ void GrayscaleToAlpha(IconFile& IconData)
 
 void ShowUsage()
 {
-    _tprintf(TEXT("Usage %s <command> <command args>\n"), argapp());
+    _tprintf(TEXT("Usage %s <options> [command] <command args>\n"), argapp());
+    _tprintf(TEXT("\n"));
+    _tprintf(TEXT("Options:\n"));
+    _tprintf(TEXT("\t/IgnoreValidatePng\t\t\t\t- do note validate png entries\n"));
     _tprintf(TEXT("\n"));
     _tprintf(TEXT("Command:\n"));
-    _tprintf(TEXT("\tlist <ico file>\t\t\t\t- list icon sizes in file\n"));
-    _tprintf(TEXT("\tshow <ico file> <icon num>\t\t- display icon in terminal\n"));
-    _tprintf(TEXT("\talphablend <dest ico file> <src ico file> <blend ico file>\t- alpha blend individual icons in file\n"));
-    _tprintf(TEXT("\tgrayscalealpha <dest ico file> <src ico file>\t- convert grayscale into the alpha channel\n"));
+    _tprintf(TEXT("\tlist [ico file]\t\t\t\t- list icon sizes in file\n"));
+    _tprintf(TEXT("\tshow [ico file] [icon num]\t\t- display icon in terminal\n"));
+    _tprintf(TEXT("\talphablend [dest ico file] [src ico file] <blend ico file>...\t- alpha blend individual icons in file\n"));
+    _tprintf(TEXT("\tgrayscalealpha [dest ico file] [src ico file]\t- convert grayscale into the alpha channel\n"));
 }
 
 int _tmain(const int argc, const TCHAR* argv[])
@@ -138,6 +141,7 @@ int _tmain(const int argc, const TCHAR* argv[])
         arginit(argc, argv);
         int arg = 1;
         LPCTSTR cmd = argnum(arg++);
+        const bool bIgnoreValidatePng = argswitch(TEXT("/IgnoreValidatePng"));
 
         if (cmd == nullptr)
         {
@@ -153,7 +157,7 @@ int _tmain(const int argc, const TCHAR* argv[])
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(icofile);
+            IconFile IconData = IconFile::Load(icofile, bIgnoreValidatePng);
             IconList(IconData);
             return EXIT_SUCCESS;
         }
@@ -167,7 +171,7 @@ int _tmain(const int argc, const TCHAR* argv[])
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(icofile);
+            IconFile IconData = IconFile::Load(icofile, bIgnoreValidatePng);
             const IconFile::Entry& entry = IconData.entry[iconum];
             if (entry.IsPNG())
             {
@@ -188,11 +192,11 @@ int _tmain(const int argc, const TCHAR* argv[])
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(inicofile);
+            IconFile IconData = IconFile::Load(inicofile, bIgnoreValidatePng);
             LPCTSTR blendicofile;
             while ((blendicofile = argnum(arg++)) != nullptr)
             {
-                const IconFile IconDataBlend = IconFile::Load(blendicofile);
+                const IconFile IconDataBlend = IconFile::Load(blendicofile, bIgnoreValidatePng);
                 AlphaBlendImages(IconData, IconDataBlend);
             }
             if (!argcleanup())
@@ -200,7 +204,7 @@ int _tmain(const int argc, const TCHAR* argv[])
                 ShowUsage();
                 return EXIT_FAILURE;
             }
-            IconData.Save(outicofile);
+            IconData.Save(outicofile, bIgnoreValidatePng);
             return EXIT_SUCCESS;
         }
         else if (_tcsicmp(cmd, TEXT("grayscalealpha")) == 0)
@@ -213,9 +217,9 @@ int _tmain(const int argc, const TCHAR* argv[])
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(inicofile);
+            IconFile IconData = IconFile::Load(inicofile, bIgnoreValidatePng);
             GrayscaleToAlpha(IconData);
-            IconData.Save(outicofile);
+            IconData.Save(outicofile, bIgnoreValidatePng);
             return EXIT_SUCCESS;
         }
         else

@@ -50,7 +50,7 @@ inline DWORD pad32(DWORD b)
 class IconFile
 {
 public:
-    static IconFile Load(LPCTSTR lpFilename);
+    static IconFile Load(LPCTSTR lpFilename, bool bIgnoreValidatePng);
 
     IconFile()
         : Header()
@@ -60,8 +60,8 @@ public:
 
     IconType GetType() const { return static_cast<IconType>(Header.idType); }
 
-    void Validate() const;
-    void Save(LPCTSTR lpFilename) const;
+    void Validate(bool bIgnorePng) const;
+    void Save(LPCTSTR lpFilename, bool bIgnoreValidatePng) const;
 
     class Entry
     {

@@ -3,7 +3,7 @@
 #include "Utils.h"
 #include <tchar.h>
 
-IconFile IconFile::Load(LPCTSTR lpFilename)
+IconFile IconFile::Load(LPCTSTR lpFilename, bool bIgnoreValidatePng)
 {
     IconFile IconData;
 
@@ -33,7 +33,7 @@ IconFile IconFile::Load(LPCTSTR lpFilename)
         throw;
     }
 
-    IconData.Validate();
+    IconData.Validate(bIgnoreValidatePng);
     return IconData;
 }
 
@@ -44,7 +44,7 @@ IconFile::~IconFile()
 #define VALIDATE(x) if (!(x)) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s\n"), TEXT(#x)); }
 #define VALIDATE_OP(x, op, y) if (!((x) op (y))) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s %s %s -> %d %s %d\n"), TEXT(#x), TEXT(#op), TEXT(#y), (int) (x), TEXT(#op), (int) (y)); }
 
-void IconFile::Validate() const
+void IconFile::Validate(bool bIgnorePng) const
 {
     bool valid = true;
     VALIDATE_OP(Header.idReserved, ==, 0);
@@ -69,7 +69,7 @@ void IconFile::Validate() const
 
             VALIDATE_OP(sizeof(BITMAPINFOHEADER) + (entry.GetColorSize() * sizeof(RGBQUAD)) + dwBytesInXOR + dwBytesInAND, ==, entry.dir.dwBytesInRes);
         }
-        else
+        else if (!bIgnorePng)
         {
             VALIDATE_OP(entry.dir.bWidth, ==, 0);
             VALIDATE_OP(entry.dir.bHeight, ==, 0);
@@ -80,9 +80,9 @@ void IconFile::Validate() const
     if (!valid) throw Error(TEXT("Invalid icon"));
 }
 
-void IconFile::Save(LPCTSTR lpFilename) const
+void IconFile::Save(LPCTSTR lpFilename, bool bIgnoreValidatePng) const
 {
-    Validate();
+    Validate(bIgnoreValidatePng);
 
     const HANDLE hFile = CreateFile(lpFilename, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, 0, NULL);
     CHECK(hFile != INVALID_HANDLE_VALUE);
