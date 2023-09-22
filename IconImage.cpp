@@ -9,6 +9,25 @@ inline BYTE getNybble(BYTE b, int i)
     return (b >> (i * 4)) & 0xF;
 }
 
+inline long ColourDistanceSq(RGBQUAD e1, RGBQUAD e2)
+{
+    long rmean = ((long) e1.rgbRed + (long) e2.rgbRed) / 2;
+    long r = (long) e1.rgbRed - (long) e2.rgbRed;
+    long g = (long) e1.rgbGreen - (long) e2.rgbGreen;
+    long b = (long) e1.rgbBlue - (long) e2.rgbBlue;
+    long s = (long) e1.rgbReserved - (long) e2.rgbReserved;
+    return (((512 + rmean) * r * r) >> 8) + 4 * g * g + (((767 - rmean) * b * b) >> 8) + s * s;
+}
+
+int IconImage::GetNearestColour(const RGBQUAD c) const
+{
+    const RGBQUAD* it = std::min_element(pColor, pColor + iColorCount, [c](RGBQUAD x, RGBQUAD y)
+        {
+            return ColourDistanceSq(x, c) < ColourDistanceSq(y, c);
+        });
+    return int(it - pColor);
+}
+
 IconImage::IconImage(const IconFile::Entry& entry)
 {
     _ASSERTE(!entry.IsPNG());

@@ -24,6 +24,7 @@ public:
     LONG GetHeight() const { return biHeight; }
 
     RGBQUAD GetColour(int i) const { _ASSERTE(i >= 0 && i < iColorCount); return pColor[i]; }
+    int GetNearestColour(const RGBQUAD c) const;
 
     bool GetMask(int x, int y) const
     {
