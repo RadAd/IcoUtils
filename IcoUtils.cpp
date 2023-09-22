@@ -96,6 +96,30 @@ void AlphaBlendImages(IconFile& IconDataDest, const IconFile& IconDataSrc)
     }
 }
 
+void GrayscaleToAlpha(IconFile& IconData)
+{
+    for (IconFile::Entry& entry : IconData.entry)
+    {
+        if (!entry.IsPNG())
+        {
+            IconImage dest(entry);
+            for (int y = 0; y < dest.GetHeight(); ++y)
+            {
+                for (int x = 0; x < dest.GetWidth(); ++x)
+                {
+                    RGBQUAD c = dest.GetColour(x, y);
+                    if (c.rgbRed != c.rgbGreen || c.rgbRed != c.rgbBlue) throw Error(TEXT("Not grayscale"));
+                    c.rgbReserved = 255 - c.rgbRed;
+                    c.rgbRed = 0;
+                    c.rgbGreen = 0;
+                    c.rgbBlue = 0;
+                    dest.PutColour(x, y, c);
+                }
+            }
+        }
+    }
+}
+
 void ShowUsage()
 {
     _tprintf(TEXT("Usage %s <command> <command args>\n"), argapp());
@@ -104,6 +128,7 @@ void ShowUsage()
     _tprintf(TEXT("\tlist <ico file>\t\t\t\t- list icon sizes in file\n"));
     _tprintf(TEXT("\tshow <ico file> <icon num>\t\t- display icon in terminal\n"));
     _tprintf(TEXT("\talphablend <dest ico file> <src ico file> <blend ico file>\t- alpha blend individual icons in file\n"));
+    _tprintf(TEXT("\tgrayscalealpha <dest ico file> <src ico file>\t- convert grayscale into the alpha channel\n"));
 }
 
 int _tmain(const int argc, const TCHAR* argv[])
@@ -178,6 +203,26 @@ int _tmain(const int argc, const TCHAR* argv[])
             IconData.Save(outicofile);
             return EXIT_SUCCESS;
         }
+        else if (_tcsicmp(cmd, TEXT("grayscalealpha")) == 0)
+        {
+            LPCTSTR outicofile = argnum(arg++);
+            LPCTSTR inicofile = argnum(arg++);
+            if (!argcleanup() || outicofile == nullptr || inicofile == nullptr)
+            {
+                ShowUsage();
+                return EXIT_FAILURE;
+            }
+
+            IconFile IconData = IconFile::Load(inicofile);
+            GrayscaleToAlpha(IconData);
+            IconData.Save(outicofile);
+            return EXIT_SUCCESS;
+        }
+        else
+        {
+            _ftprintf(stderr, TEXT("Unknown command: %s\n"), cmd);
+            return EXIT_FAILURE;
+        }
     }
     catch (const WinError& e)
     {
@@ -186,7 +231,7 @@ int _tmain(const int argc, const TCHAR* argv[])
     }
     catch (const Error& e)
     {
-        _ftprintf(stderr, e.GetMsg().c_str());
+        _ftprintf(stderr, TEXT("%s\n"), e.GetMsg().c_str());
         return EXIT_FAILURE;
     }
 }
