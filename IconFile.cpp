@@ -42,6 +42,7 @@ IconFile::~IconFile()
 }
 
 #define VALIDATE(x) if (!(x)) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s\n"), TEXT(#x)); }
+#define VALIDATE_OP(x, op, y) if (!((x) op (y))) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s %s %s -> %d %s %d\n"), TEXT(#x), TEXT(#op), TEXT(#y), (int) (x), TEXT(#op), (int) (y)); }
 
 void IconFile::Validate() const
 {
@@ -55,24 +56,24 @@ void IconFile::Validate() const
         if (!entry.IsPNG())
         {
             const BITMAPINFOHEADER* header = entry.GetBITMAPINFOHEADER();
-            VALIDATE(header->biPlanes == 1);
+            VALIDATE_OP(header->biPlanes, ==, 1);
 
-            VALIDATE(header->biWidth == entry.dir.bWidth);
-            VALIDATE(header->biHeight == entry.dir.bHeight * 2);
-            VALIDATE(header->biBitCount == entry.dir.wBitCount);
+            VALIDATE_OP(header->biWidth, ==, entry.dir.bWidth);
+            VALIDATE_OP(header->biHeight, ==, entry.dir.bHeight * 2);
+            VALIDATE_OP(header->biBitCount, ==, entry.dir.wBitCount);
 
-            VALIDATE(entry.dir.dwImageOffset == dwImageOffset);
+            VALIDATE_OP(entry.dir.dwImageOffset, ==, dwImageOffset);
 
             const DWORD dwBytesInXOR = entry.GetBytesPerLineXOR() * header->biHeight / 2;
             const DWORD dwBytesInAND = entry.GetBytesPerLineAND() * header->biHeight / 2;
 
-            VALIDATE(sizeof(BITMAPINFOHEADER) + (entry.GetColorSize() * sizeof(RGBQUAD)) + dwBytesInXOR + dwBytesInAND == entry.dir.dwBytesInRes);
+            VALIDATE_OP(sizeof(BITMAPINFOHEADER) + (entry.GetColorSize() * sizeof(RGBQUAD)) + dwBytesInXOR + dwBytesInAND, ==, entry.dir.dwBytesInRes);
         }
         else
         {
-            VALIDATE(entry.dir.bWidth == 0);
-            VALIDATE(entry.dir.bHeight == 0);
-            VALIDATE(entry.dir.wBitCount == 32);
+            VALIDATE_OP(entry.dir.bWidth, ==, 0);
+            VALIDATE_OP(entry.dir.bHeight, ==, 0);
+            VALIDATE_OP(entry.dir.wBitCount, ==, 32);
         }
         dwImageOffset += entry.dir.dwBytesInRes;
     }
