@@ -47,9 +47,9 @@ IconFile::~IconFile()
 void IconFile::Validate() const
 {
     bool valid = true;
-    VALIDATE(Header.idReserved == 0);
+    VALIDATE_OP(Header.idReserved, ==, 0);
     VALIDATE(GetType() == TYPE_ICON || GetType() == TYPE_CURSOR);
-    VALIDATE(Header.idCount == entry.size());
+    VALIDATE_OP(Header.idCount, ==, entry.size());
     DWORD dwImageOffset = sizeof(ICONHEADER) + static_cast<DWORD>(entry.size()) * sizeof(ICONDIR);
     for (const Entry& entry : entry)
     {
