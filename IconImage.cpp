@@ -126,10 +126,9 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
     case 1:
     {
         _ASSERTE(iColorCount == 2);
-        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
-        //const BYTE n = GetNearestColour(c);
-        //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
-        //*p = SetBit(*p, 8 - 1 - x % 8, n);
+        const BYTE n = GetNearestColour(c);
+        BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
+        *p = SetBit(*p, 8 - 1 - x % 8, n);
         break;
     }
 
