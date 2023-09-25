@@ -11,11 +11,11 @@ inline BYTE getNybble(BYTE b, int i)
 
 inline long ColourDistanceSq(RGBQUAD e1, RGBQUAD e2)
 {
-    long rmean = ((long) e1.rgbRed + (long) e2.rgbRed) / 2;
-    long r = (long) e1.rgbRed - (long) e2.rgbRed;
-    long g = (long) e1.rgbGreen - (long) e2.rgbGreen;
-    long b = (long) e1.rgbBlue - (long) e2.rgbBlue;
-    long s = (long) e1.rgbReserved - (long) e2.rgbReserved;
+    const long rmean = ((long) e1.rgbRed + (long) e2.rgbRed) / 2;
+    const long r = (long) e1.rgbRed - (long) e2.rgbRed;
+    const long g = (long) e1.rgbGreen - (long) e2.rgbGreen;
+    const long b = (long) e1.rgbBlue - (long) e2.rgbBlue;
+    const long s = 0;// (long) e1.rgbReserved - (long) e2.rgbReserved;
     return (((512 + rmean) * r * r) >> 8) + 4 * g * g + (((767 - rmean) * b * b) >> 8) + s * s;
 }
 
@@ -54,7 +54,6 @@ RGBQUAD IconImage::GetColour(int x, int y) const
     _ASSERTE(y >= 0 && y < GetHeight());
 
     RGBQUAD c = {};
-    c.rgbReserved = 255;
     switch (biBitCount)
     {
     case 1:
@@ -63,6 +62,7 @@ RGBQUAD IconImage::GetColour(int x, int y) const
         const BYTE v = *reinterpret_cast<BYTE*>(GetColourPtr(x, y));
         const BYTE n = GetBit(v, 8 - 1 - x % 8);
         c = GetColour(n);
+        c.rgbReserved = GetMask(x, y) ? 0 : 255;
         break;
     }
 
@@ -72,6 +72,7 @@ RGBQUAD IconImage::GetColour(int x, int y) const
         const BYTE v = *reinterpret_cast<BYTE*>(GetColourPtr(x, y));
         const BYTE n = getNybble(v, 2 - 1 - x % 2);
         c = GetColour(n);
+        c.rgbReserved = GetMask(x, y) ? 0 : 255;
         break;
     }
 
@@ -80,6 +81,7 @@ RGBQUAD IconImage::GetColour(int x, int y) const
         _ASSERTE(iColorCount == 256);
         const BYTE n = *reinterpret_cast<BYTE*>(GetColourPtr(x, y));
         c = GetColour(n);
+        c.rgbReserved = GetMask(x, y) ? 0 : 255;
         break;
     }
 
@@ -90,6 +92,7 @@ RGBQUAD IconImage::GetColour(int x, int y) const
         c.rgbRed = (v >> 16) & 0xFF;
         c.rgbGreen = (v >> 8) & 0xFF;
         c.rgbBlue = (v >> 0) & 0xFF;
+        c.rgbReserved = GetMask(x, y) ? 0 : 255;
         break;
     }
 
@@ -101,6 +104,8 @@ RGBQUAD IconImage::GetColour(int x, int y) const
         c.rgbRed = (v >> 16) & 0xFF;
         c.rgbGreen = (v >> 8) & 0xFF;
         c.rgbBlue = (v >> 0) & 0xFF;
+        if (GetMask(x, y))
+            c.rgbReserved = 0;
         break;
     }
 
@@ -108,8 +113,6 @@ RGBQUAD IconImage::GetColour(int x, int y) const
         throw Error(Format(TEXT("biBitCount %d not supported"), biBitCount));
         break;
     }
-    if (GetMask(x, y))
-        c.rgbReserved = 0;
     return c;
 }
 
@@ -124,7 +127,7 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
     {
         _ASSERTE(iColorCount == 2);
         throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
-        //const BYTE n = GetNearestColor(c);
+        //const BYTE n = GetNearestColour(c);
         //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
         //*p = SetBit(*p, 8 - 1 - x % 8, n);
         break;
@@ -134,7 +137,7 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
     {
         _ASSERTE(iColorCount == 16);
         throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
-        //const BYTE n = GetNearestColor(c);
+        //const BYTE n = GetNearestColour(c);
         //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
         //*p = setNybble(*p, 8 - 1 - x % 8, n);
         break;
@@ -143,10 +146,9 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
     case 8:
     {
         _ASSERTE(iColorCount == 256);
-        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
-        //const BYTE n = GetNearestColor(c);
-        //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
-        //*p = n;
+        const BYTE n = GetNearestColour(c);
+        BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
+        *p = n;
         break;
     }
 
@@ -172,5 +174,5 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
         throw Error(Format(TEXT("biBitCount %d not supported"), biBitCount));
         break;
     }
-    SetMask(x, y, c.rgbReserved == 255);
+    SetMask(x, y, c.rgbReserved == 0);
 }

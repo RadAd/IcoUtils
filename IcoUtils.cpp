@@ -11,17 +11,12 @@
 #include "Utils.h"
 #include "arg.h"
 
-inline int Fix(BYTE b)
-{
-    return b == 0 ? 256 : b;
-}
-
 void IconList(const IconFile& IconData)
 {
     int i = 0;
     for (const IconFile::Entry& entry : IconData.entry)
     {
-        _tprintf(TEXT("%2d: %3d x %3d x %3d %s\n"), i, Fix(entry.dir.bWidth), Fix(entry.dir.bHeight), entry.dir.wBitCount,
+        _tprintf(TEXT("%2d: %3d x %3d x %3d %s\n"), i, entry.dir.bWidth, entry.dir.bHeight, entry.dir.wBitCount,
             entry.IsPNG() ? TEXT("PNG") : TEXT("BMP"));
         ++i;
     }
