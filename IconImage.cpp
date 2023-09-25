@@ -6,7 +6,15 @@
 
 inline BYTE getNybble(BYTE b, int i)
 {
+    _ASSERTE(i == 0 || i == 1);
     return (b >> (i * 4)) & 0xF;
+}
+
+inline BYTE setNybble(BYTE b, BYTE n, int i)
+{
+    _ASSERTE(i == 0 || i == 1);
+    _ASSERTE((n & 0xF) == n);
+    return (b & (0xF << ((1 - i) * 4))) | (n << (i * 4));
 }
 
 inline long ColourDistanceSq(RGBQUAD e1, RGBQUAD e2)
@@ -135,10 +143,9 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
     case 4:
     {
         _ASSERTE(iColorCount == 16);
-        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
-        //const BYTE n = GetNearestColour(c);
-        //const BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
-        //*p = setNybble(*p, 8 - 1 - x % 8, n);
+        const BYTE n = GetNearestColour(c);
+        BYTE* p = reinterpret_cast<BYTE*>(GetColourPtr(x, y));
+        *p = setNybble(*p, n, 2 - 1 - x % 2);
         break;
     }
 
