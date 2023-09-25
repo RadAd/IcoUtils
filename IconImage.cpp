@@ -155,10 +155,9 @@ void IconImage::PutColour(int x, int y, const RGBQUAD c) const
     case 24:
     {
         _ASSERTE(iColorCount == 0);
-        throw Error(Format(TEXT("TODo support biBitCount %d"), biBitCount));
-        //const UINT32* p = reinterpret_cast<UINT32*>(GetColourPtr(x, y));
-        //const UINT32 v = ((c.rgbReserved << 24) | (c.rgbRed << 16) | (c.rgbGreen << 8) | (c.rgbBlue << 0)) & 0xFFFFFF;
-        //*p = (*p & 0xFF000000) | v;
+        const UINT32 v = (c.rgbRed << 16) | (c.rgbGreen << 8) | (c.rgbBlue << 0);
+        UINT32* p = reinterpret_cast<UINT32*>(GetColourPtr(x, y));
+        *p = (*p & 0xFF000000) | v;
         break;
     }
 
