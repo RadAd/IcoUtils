@@ -115,6 +115,34 @@ void GrayscaleToAlpha(IconFile& IconData)
     }
 }
 
+BOOL HandleResourceName(
+    HMODULE hModule,
+    LPCTSTR lpType,
+    LPTSTR lpName,
+    LONG_PTR lParam
+)
+{
+    if (IS_INTRESOURCE(lpName))
+        _tprintf(TEXT("%u\n"), (USHORT) (INT_PTR) lpName);
+    else
+        _tprintf(TEXT("%s\n"), lpName);
+    return TRUE;
+}
+
+bool ParseIconIndex(LPTSTR arg, int* index)
+{
+    LPTSTR x;
+    if ((x = _tcsstr(arg, TEXT(".exe,"))) || (x = _tcsstr(arg, TEXT(".dll,"))))
+    {
+        x += 4;
+        *index = _tstoi(x + 1);
+        *x = TEXT('\0');
+        return true;
+    }
+    else
+        return false;
+}
+
 void ShowUsage()
 {
     _tprintf(TEXT("Usage %s <options> [command] <command args>\n"), argapp());
@@ -125,8 +153,12 @@ void ShowUsage()
     _tprintf(TEXT("Command:\n"));
     _tprintf(TEXT("\tlist [ico file]\t\t\t\t- list icon sizes in file\n"));
     _tprintf(TEXT("\tshow [ico file] [icon num]\t\t- display icon in terminal\n"));
+    _tprintf(TEXT("\tcopy [dest ico file] [src ico file]\t- copy icon\n"));
     _tprintf(TEXT("\talphablend [dest ico file] [src ico file] <blend ico file>...\t- alpha blend individual icons in file\n"));
     _tprintf(TEXT("\tgrayscalealpha [dest ico file] [src ico file]\t- convert grayscale into the alpha channel\n"));
+    _tprintf(TEXT("\n"));
+    _tprintf(TEXT("Where:\n"));
+    _tprintf(TEXT("\t[src ico file]\t- can be an icon file (.ico) or an exe/dll resource (.exe,n) (.dll,n)\n"));
 }
 
 int _tmain(const int argc, const TCHAR* argv[])
@@ -145,28 +177,53 @@ int _tmain(const int argc, const TCHAR* argv[])
         }
         else if (_tcsicmp(cmd, TEXT("list")) == 0)
         {
-            LPCTSTR icofile = argnum(arg++);
-            if (!argcleanup() || icofile == nullptr)
+            LPCTSTR icofilearg = argnum(arg++);
+            if (!argcleanup() || icofilearg == nullptr)
             {
                 ShowUsage();
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(icofile, bIgnoreValidatePng);
-            IconList(IconData);
+            WCHAR icofile[MAX_PATH];
+            ExpandEnvironmentStrings(icofilearg, icofile, ARRAYSIZE(icofile));
+
+            size_t len = _tcslen(icofile);
+            if ((_tcscmp(icofile + len - 4, TEXT(".exe")) == 0) || (_tcscmp(icofile + len - 4, TEXT(".dll")) == 0))
+            {
+                HMODULE hModule = LoadLibraryEx(icofile, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+                CHECK(hModule);
+                EnumResourceNames(hModule, RT_GROUP_ICON, HandleResourceName, 0);
+                FreeLibrary(hModule);
+                _tprintf(TEXT("\n"));
+            }
+            else
+            {
+                int index = 0;
+                const IconFile IconData = ParseIconIndex(icofile, &index)
+                    ? IconFile::FromResource(icofile, index, bIgnoreValidatePng)
+                    : IconFile::Load(icofile, bIgnoreValidatePng);
+                IconList(IconData);
+            }
             return EXIT_SUCCESS;
         }
         else if (_tcsicmp(cmd, TEXT("show")) == 0)
         {
-            LPCTSTR icofile = argnum(arg++);
+            LPCTSTR icofilearg = argnum(arg++);
             int iconum = _tstoi(argnum(arg++, TEXT("0")));
-            if (!argcleanup() || icofile == nullptr)
+            if (!argcleanup() || icofilearg == nullptr)
             {
                 ShowUsage();
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(icofile, bIgnoreValidatePng);
+            WCHAR icofile[MAX_PATH];
+            ExpandEnvironmentStrings(icofilearg, icofile, ARRAYSIZE(icofile));
+
+            int index = 0;
+            const IconFile IconData = ParseIconIndex(icofile, &index)
+                ? IconFile::FromResource(icofile, index, bIgnoreValidatePng)
+                : IconFile::Load(icofile, bIgnoreValidatePng);
+
             const IconFile::Entry& entry = IconData.entry[iconum];
             if (entry.IsPNG())
             {
@@ -179,15 +236,24 @@ int _tmain(const int argc, const TCHAR* argv[])
         }
         else if (_tcsicmp(cmd, TEXT("alphablend")) == 0)
         {
-            LPCTSTR outicofile = argnum(arg++);
-            LPCTSTR inicofile = argnum(arg++);
-            if (outicofile == nullptr || inicofile == nullptr)
+            LPCTSTR outicofilearg = argnum(arg++);
+            LPCTSTR inicofilearg = argnum(arg++);
+            if (outicofilearg == nullptr || inicofilearg == nullptr)
             {
                 ShowUsage();
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(inicofile, bIgnoreValidatePng);
+            WCHAR outicofile[MAX_PATH];
+            WCHAR inicofile[MAX_PATH];
+            ExpandEnvironmentStrings(outicofilearg, outicofile, ARRAYSIZE(outicofile));
+            ExpandEnvironmentStrings(inicofilearg, inicofile, ARRAYSIZE(inicofile));
+
+            int index = 0;
+            IconFile IconData = ParseIconIndex(inicofile, &index)
+                ? IconFile::FromResource(inicofile, index, bIgnoreValidatePng)
+                : IconFile::Load(inicofile, bIgnoreValidatePng);
+
             LPCTSTR blendicofile;
             while ((blendicofile = argnum(arg++)) != nullptr)
             {
@@ -204,16 +270,48 @@ int _tmain(const int argc, const TCHAR* argv[])
         }
         else if (_tcsicmp(cmd, TEXT("grayscalealpha")) == 0)
         {
-            LPCTSTR outicofile = argnum(arg++);
-            LPCTSTR inicofile = argnum(arg++);
-            if (!argcleanup() || outicofile == nullptr || inicofile == nullptr)
+            LPCTSTR outicofilearg = argnum(arg++);
+            LPCTSTR inicofilearg = argnum(arg++);
+            if (!argcleanup() || outicofilearg == nullptr || inicofilearg == nullptr)
             {
                 ShowUsage();
                 return EXIT_FAILURE;
             }
 
-            IconFile IconData = IconFile::Load(inicofile, bIgnoreValidatePng);
+            WCHAR outicofile[MAX_PATH];
+            WCHAR inicofile[MAX_PATH];
+            ExpandEnvironmentStrings(outicofilearg, outicofile, ARRAYSIZE(outicofile));
+            ExpandEnvironmentStrings(inicofilearg, inicofile, ARRAYSIZE(inicofile));
+
+            int index = 0;
+            IconFile IconData = ParseIconIndex(inicofile, &index)
+                ? IconFile::FromResource(inicofile, index, bIgnoreValidatePng)
+                : IconFile::Load(inicofile, bIgnoreValidatePng);
+
             GrayscaleToAlpha(IconData);
+            IconData.Save(outicofile, bIgnoreValidatePng);
+            return EXIT_SUCCESS;
+        }
+        else if (_tcsicmp(cmd, TEXT("copy")) == 0)
+        {
+            LPCTSTR outicofilearg = argnum(arg++);
+            LPCTSTR inicofilearg = argnum(arg++);
+            if (!argcleanup() || outicofilearg == nullptr || inicofilearg == nullptr)
+            {
+                ShowUsage();
+                return EXIT_FAILURE;
+            }
+
+            WCHAR outicofile[MAX_PATH];
+            WCHAR inicofile[MAX_PATH];
+            ExpandEnvironmentStrings(outicofilearg, outicofile, ARRAYSIZE(outicofile));
+            ExpandEnvironmentStrings(inicofilearg, inicofile, ARRAYSIZE(inicofile));
+
+            int index = 0;
+            const IconFile IconData = ParseIconIndex(inicofile, &index)
+                ? IconFile::FromResource(inicofile, index, bIgnoreValidatePng)
+                : IconFile::Load(inicofile, bIgnoreValidatePng);
+
             IconData.Save(outicofile, bIgnoreValidatePng);
             return EXIT_SUCCESS;
         }

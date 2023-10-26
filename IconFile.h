@@ -5,6 +5,7 @@
 
 enum IconType { TYPE_NONE, TYPE_ICON, TYPE_CURSOR };
 
+#pragma pack(push, 2)
 struct ICONHEADER
 {
     WORD idReserved; // must be 0
@@ -25,6 +26,7 @@ struct ICONDIR
     DWORD dwBytesInRes;
     DWORD dwImageOffset; // file-offset to the start of ICONIMAGE
 };
+#pragma pack(pop)
 
 #if 0
 struct ICONIMAGE
@@ -51,6 +53,8 @@ class IconFile
 {
 public:
     static IconFile Load(LPCTSTR lpFilename, bool bIgnoreValidatePng);
+    static IconFile FromResource(LPCTSTR strModule, int index, bool bIgnoreValidatePng);
+    static IconFile FromResource(HMODULE hModule, int index, bool bIgnoreValidatePng);
 
     IconFile()
         : Header()
@@ -70,6 +74,7 @@ public:
 
         void LoadData(HANDLE hFile);
         void SaveData(HANDLE hFile) const;
+        void DataFromResource(HMODULE hModule, WORD nId);
 
         bool IsPNG() const;
 

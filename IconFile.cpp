@@ -3,15 +3,32 @@
 #include "Utils.h"
 #include <tchar.h>
 
+#define VALIDATE(x) if (!(x)) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s\n"), TEXT(#x)); }
+#define VALIDATE_OP(x, op, y) if (!((x) op (y))) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s %s %s -> %d %s %d\n"), TEXT(#x), TEXT(#op), TEXT(#y), (int) (x), TEXT(#op), (int) (y)); }
+
+#pragma pack(push, 2)
+struct ICONDIRRES
+{
+    BYTE  bWidth;
+    BYTE  bHeight;
+    BYTE  bColorCount;
+    BYTE  bReserved;
+    WORD  wPlanes;
+    WORD  wBitCount;
+    DWORD dwBytesInRes;
+    WORD  nId;
+};
+#pragma pack(pop)
+
 IconFile IconFile::Load(LPCTSTR lpFilename, bool bIgnoreValidatePng)
 {
-    IconFile IconData;
-
     const HANDLE hFile = CreateFile(lpFilename, GENERIC_READ, 0, nullptr, OPEN_EXISTING, 0, NULL);
     CHECK(hFile != INVALID_HANDLE_VALUE);
 
     try
     {
+        IconFile IconData;
+
         CheckReadFile(hFile, &IconData.Header, sizeof(ICONHEADER));
 
         IconData.entry.resize(IconData.Header.idCount);
@@ -26,11 +43,70 @@ IconFile IconFile::Load(LPCTSTR lpFilename, bool bIgnoreValidatePng)
         }
 
         CloseHandle(hFile);
+
+        IconData.Validate(bIgnoreValidatePng);
+        return IconData;
     }
     catch (...)
     {
         CloseHandle(hFile);
         throw;
+    }
+}
+
+IconFile IconFile::FromResource(LPCTSTR strModule, int index, bool bIgnoreValidatePng)
+{
+    HMODULE hModule = LoadLibraryEx(strModule, NULL, LOAD_LIBRARY_AS_IMAGE_RESOURCE);
+    CHECK(hModule);
+
+    try
+    {
+        const IconFile IconData = IconFile::FromResource(hModule, index, bIgnoreValidatePng);
+
+        FreeLibrary(hModule);
+
+        return IconData;
+    }
+    catch (...)
+    {
+        FreeLibrary(hModule);
+        throw;
+    }
+}
+
+IconFile IconFile::FromResource(HMODULE hModule, int index, bool bIgnoreValidatePng)
+{
+    HRSRC hResInfo = FindResourceEx(hModule, RT_GROUP_ICON, MAKEINTRESOURCE(index), MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL)); // TODO Specify lang
+    CHECK(hResInfo);
+
+    const DWORD sz = SizeofResource(hModule, hResInfo);
+
+    HGLOBAL hRes = LoadResource(hModule, hResInfo);
+    CHECK(hRes);
+
+    IconFile IconData;
+
+    const ICONHEADER* pIconHeader = (ICONHEADER*) LockResource(hRes);
+    memcpy(&IconData.Header, pIconHeader, sizeof(ICONHEADER));
+    IconData.entry.resize(IconData.Header.idCount);
+
+    bool valid = true;
+    VALIDATE_OP(sz, ==, (sizeof(ICONHEADER) + IconData.Header.idCount * sizeof(ICONDIRRES)));
+
+    const ICONDIRRES* pIconDirResArray = (ICONDIRRES*) (pIconHeader + 1);
+    DWORD dwImageOffset = sizeof(ICONHEADER) + static_cast<DWORD>(IconData.entry.size()) * sizeof(ICONDIR);
+    for (int i = 0; i < IconData.Header.idCount; ++i)
+    {
+        Entry& entry = IconData.entry[i];
+
+        // Resource ICONDIR is one WORD shorter than file ICONDIR
+        const ICONDIRRES* pIconDir = &pIconDirResArray[i];
+        memcpy(&entry.dir, pIconDir, sizeof(ICONDIRRES));
+        entry.dir.dwImageOffset = dwImageOffset;
+
+        entry.DataFromResource(hModule, pIconDir->nId);
+
+        dwImageOffset += entry.dir.dwBytesInRes;
     }
 
     IconData.Validate(bIgnoreValidatePng);
@@ -40,9 +116,6 @@ IconFile IconFile::Load(LPCTSTR lpFilename, bool bIgnoreValidatePng)
 IconFile::~IconFile()
 {
 }
-
-#define VALIDATE(x) if (!(x)) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s\n"), TEXT(#x)); }
-#define VALIDATE_OP(x, op, y) if (!((x) op (y))) { valid = false; _ftprintf(stderr, TEXT("Invalid: %s %s %s -> %d %s %d\n"), TEXT(#x), TEXT(#op), TEXT(#y), (int) (x), TEXT(#op), (int) (y)); }
 
 void IconFile::Validate(bool bIgnorePng) const
 {
@@ -130,7 +203,26 @@ void IconFile::Entry::SaveData(const HANDLE hFile) const
     CheckWriteFile(hFile, data.data(), static_cast<DWORD>(data.size()));
 }
 
+void IconFile::Entry::DataFromResource(HMODULE hModule, WORD nId)
+{
+    bool valid = true;
+
+    HRSRC hResInfoIcon = FindResourceEx(hModule, RT_ICON, MAKEINTRESOURCE(nId), MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL)); // TODO Specify lang
+    CHECK(hResInfoIcon);
+
+    const DWORD sz = SizeofResource(hModule, hResInfoIcon);
+    VALIDATE_OP(sz, ==, dir.dwBytesInRes);
+
+    HGLOBAL hRes = LoadResource(hModule, hResInfoIcon);
+    CHECK(hRes);
+
+    const BYTE* pIconData = (BYTE*) LockResource(hRes);
+
+    data.resize(dir.dwBytesInRes);
+    memcpy(data.data(), pIconData, data.size());
+}
+
 bool IconFile::Entry::IsPNG() const
 {
-    return ::IsPNG(data.data());
+    return !data.empty() && ::IsPNG(data.data());
 }
