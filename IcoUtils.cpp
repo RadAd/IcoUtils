@@ -11,6 +11,18 @@
 #include "Utils.h"
 #include "arg.h"
 
+RGBQUAD ParseColor(LPCTSTR str)
+{
+    const unsigned long i = _tcstoul(str, nullptr, 0);
+    const RGBQUAD c = {
+        (i >> 0) & 0xFF,
+        (i >> 8) & 0xFF,
+        (i >> 16) & 0xFF,
+        (i >> 24) & 0xFF,
+    };
+    return c;
+}
+
 void IconList(const IconFile& IconData)
 {
     int i = 0;
@@ -115,6 +127,26 @@ void GrayscaleToAlpha(IconFile& IconData)
     }
 }
 
+void Recolor(IconFile::Entry& entry, int iconum, const RGBQUAD srccolor, const RGBQUAD dstcolor)
+{
+    IconImage dest(entry);
+    for (int y = 0; y < dest.GetHeight(); ++y)
+    {
+        for (int x = 0; x < dest.GetWidth(); ++x)
+        {
+            RGBQUAD c = dest.GetColour(x, y);
+
+            if (c.rgbReserved != 0 && c.rgbRed == srccolor.rgbRed && c.rgbGreen == srccolor.rgbGreen && c.rgbBlue == srccolor.rgbBlue)
+            {
+                c.rgbRed = dstcolor.rgbRed;
+                c.rgbGreen = dstcolor.rgbGreen;
+                c.rgbBlue = dstcolor.rgbBlue;
+                dest.PutColour(x, y, c);
+            }
+        }
+    }
+}
+
 BOOL HandleResourceName(
     HMODULE hModule,
     LPCTSTR lpType,
@@ -156,6 +188,7 @@ void ShowUsage()
     _tprintf(TEXT("\tcopy [dest ico file] [src ico file]\t- copy icon\n"));
     _tprintf(TEXT("\talphablend [dest ico file] [src ico file] <blend ico file>...\t- alpha blend individual icons in file\n"));
     _tprintf(TEXT("\tgrayscalealpha [dest ico file] [src ico file]\t- convert grayscale into the alpha channel\n"));
+    _tprintf(TEXT("\trecolor [ico file] [ico num] [src color] [dst color]\t- convert grayscale into the alpha channel\n"));
     _tprintf(TEXT("\n"));
     _tprintf(TEXT("Where:\n"));
     _tprintf(TEXT("\t[src ico file]\t- can be an icon file (.ico) or an exe/dll resource (.exe,n) (.dll,n)\n"));
@@ -223,6 +256,12 @@ int _tmain(const int argc, const TCHAR* argv[])
             const IconFile IconData = ParseIconIndex(icofile, &index)
                 ? IconFile::FromResource(icofile, index, bIgnoreValidatePng)
                 : IconFile::Load(icofile, bIgnoreValidatePng);
+
+            if (iconum < 0 || iconum >= IconData.entry.size())
+            {
+                _tprintf(TEXT("Invalid icon index\n"));
+                return EXIT_FAILURE;
+            }
 
             const IconFile::Entry& entry = IconData.entry[iconum];
             if (entry.IsPNG())
@@ -315,6 +354,42 @@ int _tmain(const int argc, const TCHAR* argv[])
             IconData.Save(outicofile, bIgnoreValidatePng);
             return EXIT_SUCCESS;
         }
+        else if (_tcsicmp(cmd, TEXT("recolor")) == 0)
+        {
+            LPCTSTR icofilearg = argnum(arg++);
+            int iconum = _tstoi(argnum(arg++, TEXT("0")));
+            RGBQUAD srccolor = ParseColor(argnum(arg++, TEXT("0")));
+            RGBQUAD dstcolor = ParseColor(argnum(arg++, TEXT("0")));
+            if (!argcleanup() || icofilearg == nullptr)
+            {
+                ShowUsage();
+                return EXIT_FAILURE;
+            }
+
+            WCHAR icofile[MAX_PATH];
+            ExpandEnvironmentStrings(icofilearg, icofile, ARRAYSIZE(icofile));
+
+            int index = 0;
+            IconFile IconData = IconFile::Load(icofile, bIgnoreValidatePng);
+
+            if (iconum < 0 || iconum >= IconData.entry.size())
+            {
+                _tprintf(TEXT("Invalid icon index\n"));
+                return EXIT_FAILURE;
+            }
+
+            IconFile::Entry& entry = IconData.entry[iconum];
+            if (entry.IsPNG())
+            {
+                _tprintf(TEXT("PNG not supported\n"));
+                return EXIT_FAILURE;
+            }
+
+            Recolor(entry, iconum, srccolor, dstcolor);
+
+            IconData.Save(icofile, bIgnoreValidatePng);
+            return EXIT_SUCCESS;
+            }
         else
         {
             _ftprintf(stderr, TEXT("Unknown command: %s\n"), cmd);
